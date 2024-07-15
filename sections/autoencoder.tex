@@ -1,0 +1,102 @@
+\section{基于自编码器的异常检测}
+
+随着数据规模的不断扩大和数据复杂性的增加，传统的异常检测方法往往难以满足实际需求。因此，基于机器学习的异常检测方法逐渐受到关注，其中基于自编码器的方法因其无监督学习的特点而备受瞩目。
+
+\subsection{方法}
+
+\subsubsection{AE基本原理}
+
+自编码器（Autoencoder）是一种无监督学习的神经网络模型，其基本原理是通过将输入数据压缩成低维表示，然后再将这个低维表示解压缩为尽可能接近原始输入的输出。自编码器可以被看作是一种学习数据的压缩表示的方法，它的目标是学习数据的有意义的特征，并且能够在重构时保留这些特征。
+
+自编码器通常由两部分组成：编码器（Encoder）和解码器（Decoder）。编码器将输入数据映射到一个低维的编码表示，而解码器则将这个编码表示解码为重构的输出数据。在训练过程中，自编码器通过最小化输入数据与重构数据之间的差异来学习如何压缩和解压缩数据。
+
+下面详细介绍自编码器的基本原理：
+
+- 编码器(Encoder)
+
+编码器的作用是将输入数据映射到一个低维的编码表示。这个编码表示通常比原始输入的维度要低，因此可以看作是对数据的压缩。编码器通常由多层神经网络组成，每一层都对输入数据进行一次非线性变换。这些非线性变换可以是激活函数如ReLU（Rectified Linear Unit）等。
+
+编码器的输出即为数据的编码表示，也称为隐藏层表示或者潜在空间表示。这个表示包含了数据的主要特征，可以用来表示数据的特征结构。
+
+- 解码器(Decoder)
+
+解码器的作用是将编码器输出的低维编码表示解码为与原始输入数据尽可能接近的输出数据。解码器也由多层神经网络组成，其结构通常与编码器相反，即包含多个反向的非线性变换层。解码器的输出应该与原始输入数据具有相同的维度和结构。
+
+- 损失函数(Loss Function)
+
+自编码器的训练过程通过最小化输入数据与重构数据之间的差异来实现。常用的损失函数包括均方误差（Mean Squared Error，MSE）和交叉熵损失（Cross Entropy Loss）等。损失函数的计算基于解码器输出与原始输入之间的差异，目标是使重构数据尽可能接近原始输入数据。
+
+- 训练过程
+
+自编码器的训练过程通常采用梯度下降法或其变种来最小化损失函数。在每次训练迭代中，通过将输入数据送入编码器得到编码表示，然后将编码表示输入解码器进行重构，计算重构数据与原始输入数据之间的差异，并根据这个差异来更新网络参数。
+
+\subsection{自编码器在异常检测中的应用}
+
+自编码器在异常检测中有着广泛的应用，其原理和特点使其成为一种有效的异常检测工具。下面将详细介绍自编码器在异常检测中的应用：
+
+\subsubsection{基于重构误差的异常检测}
+
+自编码器的基本任务是将输入数据重构为输出数据，因此可以通过比较输入数据与重构数据之间的差异来进行异常检测。在训练阶段，自编码器学习了正常数据的特征表示，因此对于异常数据，重构误差通常会显著增加，从而可以将其识别为异常。
+
+\subsubsection{基于潜在空间的异常检测}
+
+自编码器的编码器部分将输入数据映射到一个低维的潜在空间表示，这个表示包含了数据的主要特征。因此，可以通过检查数据在潜在空间中的表示来进行异常检测。对于正常数据，其潜在空间表示通常会聚集在某个区域，而对于异常数据，其表示可能会分散在整个潜在空间中。
+
+
+\subsection{实验}
+
+\subsubsection{重构分析}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{./results/autoencoder/ssva/epoch_99_images_normal.png}
+    \caption{正常数据}
+    \label{fig:autoencoder_normal_images}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{./results/autoencoder/ssva/epoch_99_images_abnormal.png}
+    \caption{异常数据}
+    \label{fig:autoencoder_anomaly_images}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{./results/autoencoder/ssva/epoch_99_images_normal_recon.png}
+    \caption{正常数据重构}
+    \label{fig:autoencoder_normal_reconstructed}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{./results/autoencoder/ssva/epoch_99_images_abnormal_recon.png}
+    \caption{异常数据重构}
+    \label{fig:autoencoder_anomaly_reconstructed}
+\end{figure}
+
+\subsubsection{潜在空间分析}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{./results/autoencoder/ssva/epoch_99_tsne_latents.png}
+    \caption{潜在空间可视化}
+    \label{fig:autoencoder_latent_space}
+\end{figure}
+
+\subsubsection{异常检测}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{./results/autoencoder/ssva/epoch_99_dist_recon_loss.png}
+    \caption{重构误差分布}
+    \label{fig:autoencoder_reconstruction_error}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{./results/autoencoder/ssva/epoch_99_roc_scores.png}
+    \caption{ROC曲线}
+    \label{fig:autoencoder_roc_curve}
+\end{figure}
+
