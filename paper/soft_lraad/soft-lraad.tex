@@ -1,0 +1,401 @@
+\documentclass{article}
+
+\usepackage{geometry}
+\usepackage{gbt7714}
+\usepackage{xeCJK}
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{subfig}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{svg}
+
+\graphicspath{{assets/}}
+
+
+\linespread{1.5}
+\geometry{a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+\bibliographystyle{gbt7714-numerical}   
+\title{基于软约束潜在正则化对抗的换流阀声音异常检测}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+  本文提出了一种软约束潜在正则化对抗异常检测方法（Soft-LRAAD），旨在解决传统LRAAD方法中超参数M对生成图像的KL散度上限的硬约束带来的问题。传统LRAAD方法使用硬约束来控制KL散度上限，这样不仅使模型难以将正常数据和异常数据在潜在空间中进行有效分离，而且会导致模型训练不稳定，进而影响模型性能。
+  为了解决这一问题，Soft-LRAAD方法引入了软约束损失替代硬约束损失，即使用一个平滑的函数来逼近KL散度的上限约束损失。通过这种方式，Soft-LRAAD方法提高了模型在潜在空间中区分正常数据和异常数据的能力，同时增强了模型训练的稳定性，从而提升了整体性能。
+本文在换流站实测声音数据集上进行了实验验证，结果显示LRAAD方法在异常检测任务上的AUC指标明显优于其他基线模型，验证了该方法的有效性和实用性，为异常声音检测在换流阀状态监测领域提供了新的解决方案。
+\end{abstract}
+
+
+关键字：声学异常检测, 半监督学习, 对抗学习, 潜在变量正则化对抗
+
+\section{引言}
+
+
+本文的主要贡献包括以下几点：
+
+\begin{enumerate}
+
+  \item 提出了异常检测方法Soft-LRAAD，通过软边界的方式来控制生成器生成频谱图的KL散度上界，极大程度提高来正常数据和异常数据的在潜在空间的分离效果，从而提高了异常检测的准确性和鲁棒性。
+
+  \item 设计了基于KL散度损失和重构损失的异常分数，相比与仅使用重构损失作为异常分数的方法，基于KL散度和重构损失的异常分数能够更好地区分正常数据和异常数据，提高了异常检测的性能。
+
+  \item 使用特高压换流站的实测声音数据对模型进行了验证，实验结果表明，Soft-LRAAD方法在不同负载条件下均表现出较高的异常检测准确率和鲁棒性。
+
+\end{enumerate}
+
+本文的结构安排如下：第二章介绍了相关研究工作和背景知识；第三章详细描述了LRAAD模型的设计和实现，包括编码器和生成器的架构及其训练方法；第四章介绍了实验设置和数据集划分，并对实验结果进行分析和讨论；第五章总结了本文的研究工作，并提出了未来的研究方向。
+
+
+\section{背景}
+
+\textbf{证据下界}：证据下界（Evidence Lower Bound，ELBO）是变分自编码器（Variational Autoencoder，VAE）中的一个重要概念，用于衡量潜在变量的分布与真实分布之间的差异。ELBO由两部分组成，一部分是重构误差，用于衡量生成器生成的数据与原始数据之间的差异；另一部分是KL散度，用于衡量潜在变量的分布与先验分布之间的差异。通过最大化ELBO，可以使得生成器生成的数据更加接近真实数据，同时潜在变量的分布更加接近先验分布。证据下界的公式如下：
+
+\begin{equation}
+  ELBO(x)=\mathbb{E}_{q_{\phi}(z \mid x)}[\log p_{\theta}(x \mid z)]-D_{\mathrm{KL}}\left(q_{\phi}(z \mid x) \| p(z)\right) 
+\end{equation}
+
+\textbf{LRAAD}：潜在正则化对抗异常检测（Latent Regularized Adversarial Anomaly Detection，LRAAD）是一种基于对抗学习的异常检测方法，通过编码器和生成器来学习正常数据的潜在表示，并通过对抗学习的方式来区分正常数据和异常数据。LRAAD模型的核心思想是通过最小化正常数据的潜在表示与标准正态分布之间的KL散度，来学习将正常数据映射到潜在空间中的正态分布，同时将异常数据映射到潜在空间中的非正态分布。通过这种方式，LRAAD模型可以更好地区分正常数据和异常数据，从而实现异常检测的目的。
+
+\begin{figure}[H]
+    \centering
+    \def\svgwidth{\textwidth}
+    \input{./assets/lraad.pdf_tex}
+    \caption{The architecture of LRAAD}
+    \label{fig:lraad}
+\end{figure}
+
+记$D_{\mathrm{KL}}(x) = D_{\mathrm{KL}}(q(\cdot \mid x) \| p(\cdot))$。其中，$q(\cdot \mid x)$表示编码器编码频谱图$x$的潜在表示的分布，$p(\cdot)$表示标准正态分布，记为$\mathcal{N}(0, I)$，$D_{\mathrm{KL}}$表示KL散度。
+
+
+\begin{equation}
+  \mathcal{L}_{\mathrm{E}}=\left\|x-x^{\prime}\right\|^2 + D_{\mathrm{KL}}(x) + [M - D_{\mathrm{KL}}(x^\prime)]^{+} + [M - D_{\mathrm{KL}}(x^{\prime\prime})]^{+}
+\end{equation}
+
+\begin{equation}
+  \mathcal{L}_{\text {D}}= \left\|x-x^{\prime}\right\|^2 + D_\mathrm{KL}(x^\prime) + D_\mathrm{KL}(x^{\prime\prime}))
+\end{equation}
+
+等价地，
+
+\begin{equation}
+  \mathcal{L}_{\mathrm{E}}=-ELBO(x) + [M - D_{\mathrm{KL}}(x^\prime)]^{+} + [M - D_{\mathrm{KL}}(x^{\prime\prime})]^{+}
+\end{equation}
+
+\begin{equation}
+  \mathcal{L}_{\text {D}}=-ELBO(x) + D_\mathrm{KL}(x^\prime) + D_\mathrm{KL}(x^{\prime\prime}))
+\end{equation}
+
+其中，$[M - D_{\mathrm{KL}}]^{+}$表示生成图像的KL散度的约束项，其定义为$max(0, M - D_{\mathrm{KL}})$，其中$M$是一个超参数，用于控制KL散度的上限，避免生成图像的KL散度无穷大。
+
+
+
+
+\section{Soft-LRAAD}
+
+\subsection{Soft-LRAAD方法概述}
+
+Soft-LRAAD（Soft-Constrained Latent Regularization Adversarial Anomaly Detection）是一种改进的异常检测方法，旨在克服传统LRAAD方法中因硬约束导致的潜在空间区分能力不足和模型训练不稳定的问题。通过引入软约束损失函数，Soft-LRAAD不仅能够更有效地区分正常数据和异常数据，还提高了模型的训练稳定性。
+
+传统LRAAD方法采用硬约束来控制生成图像的KL散度上限，硬约束的引入常常导致模型在潜在空间中难以区分正常数据和异常数据。此外，硬约束还可能导致训练过程中的梯度不稳定，从而影响模型的整体性能。为了解决这些问题，Soft-LRAAD方法提出使用软约束损失函数来替代硬约束损失。
+
+在Soft-LRAAD方法中，我们使用一个平滑的函数$\frac{1}{\alpha}exp(- \alpha D_{\mathrm{KL}}(x))$来逼近KL散度的上限约束损失$[M - D_{\mathrm{KL}}(x)]^{+}$，它们的函数图像如图\ref{fig:hard_constraints}和图\ref{fig:soft_constraints}所示。具体来说，我们使用软约束损失函数$\frac{1}{\alpha}exp(- \alpha D_{\mathrm{KL}}(x^\prime)) + \frac{1}{\alpha}exp(-\alpha D_{\mathrm{KL}}(x^{\prime\prime}))$来替代传统LRAAD中的硬约束损失$[M - D_{\mathrm{KL}}(x^\prime)]^{+} + [M - D_{\mathrm{KL}}(x^{\prime\prime})]^{+}$。硬约束的引入会在潜在空间中设置严格的边界，使得生成图像的KL散度限制在边界$M$之下，限制了模型的表现。而软约束通过使用平滑函数来逼近KL散度的上限，从而缓解了这种限制。使得模型能够在保持生成图像质量的同时，更好地在潜在空间中分离正常数据和异常数据。
+
+\begin{figure}[H]
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \def\svgwidth{\textwidth}
+    \input{./assets/hard_constraints.pdf_tex}
+    \caption{The hard constraints function $[M - D_{\mathrm{KL}}]^{+}$ of KL divergence in LRAAD}
+    \label{fig:hard_constraints}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \def\svgwidth{\textwidth}
+    \input{./assets/soft_constraints.pdf_tex}
+    \caption{The soft constraints function $\frac{1}{\alpha}exp(- \alpha D_{\mathrm{KL}})$ of KL divergence in Soft-LRAAD}
+    \label{fig:soft_constraints}
+  \end{minipage}
+\end{figure}
+
+\subsection{软约束损失}
+
+Soft-LRAAD方法中的软约束损失是对LRAAD方法的重要改进之一。LRAAD方法使用硬约束来控制生成图像的KL散度上限，这导致了模型在潜在空间中难以有效区分正常数据和异常数据，同时也可能造成训练不稳定的问题。为了解决这些挑战，Soft-LRAAD引入了软约束损失，通过使用一个平滑的函数来逼近KL散度的上限约束损失，从而缓解了硬约束带来的问题。
+
+为了克服硬约束的缺点，Soft-LRAAD方法引入了软约束损失。软约束损失函数的形式为$\frac{1}{\alpha}\exp(- \alpha D_{\mathrm{KL}}(x))$，其中$\alpha$是一个可调节的超参数。相比于硬约束，软约束的函数图像呈现出平滑递减的趋势，这样的设计使得损失在KL散度接近阈值时依旧缓慢降低，而不是硬约束那样保持不变，这样可以使得生成图像的KL散度可以变大，但又不至于无穷大。通过这种方式，Soft-LRAAD方法能够更好地保持生成图像的质量，同时提高模型的异常检测性能。
+
+与传统的LRAAD方法不同,Soft-LRAAD采用了软约束的方式来处理KL散度项,使得模型在训练时对KL散度的惩罚更加灵活。具体来说,Soft-LRAAD的编码器损失函数$\mathcal{L}_{\mathrm{E}}$和生成器损失函数$\mathcal{L}_{\mathrm{D}}$分别定义如下:
+
+\begin{equation}
+  \mathcal{L}_{\mathrm{E}}=-ELBO(x) + \frac{1}{\alpha}exp(- \alpha D_{\mathrm{KL}}(x^\prime)) + \frac{1}{\alpha}exp(-\alpha D_{\mathrm{KL}}(x^{\prime\prime}))
+\end{equation}
+
+\begin{equation}
+  \mathcal{L}_{\text {D}}=-ELBO(x) + D_\mathrm{KL}(x^\prime) + D_\mathrm{KL}(x^{\prime\prime}))
+\end{equation}
+
+其中，$\alpha$一个可调节的超参数，用于控制软约束项的影响程度。
+
+对于KL散度项，加一个重构损失项，这样可以更好地保持生成图像的质量，同时提高模型的异常检测性能。通过这种方式，Soft-LRAAD方法能够更好地区分正常数据和异常数据，提高异常检测的准确性和鲁棒性。其公式如下所示。
+
+\begin{equation} \label{eq:encoder_loss}
+  \mathcal{L}_{\mathrm{E}}=-ELBO(x) + \frac{1}{\alpha}exp(\alpha ELBO(x^\prime)) + \frac{1}{\alpha}exp(\alpha ELBO(x^{\prime\prime}))
+\end{equation}
+
+\begin{equation} \label{eq:decoder_loss}
+  \mathcal{L}_{\text {D}}=-ELBO(x) - ELBO(x^\prime) - ELBO(x^{\prime\prime}))
+\end{equation}
+
+软约束对模型训练的影响主要体现在几个方面。首先，软约束使得潜在变量在潜在空间中分布更加灵活，增强了对正常数据和异常数据的区分能力。其次，软约束的引入有助于模型在训练过程中更加稳定，避免了硬约束可能导致的梯度不连续和训练不稳定问题。最后，通过调节$\alpha$参数，可以灵活控制软约束对KL散度的惩罚力度，进一步优化模型性能。
+
+\subsection{模型训练}
+
+Soft-LRAAD的结构与LRAAD类似，包括编码器$E$、生成器$G$两个部分。编码器$E$负责将输入的梅尔频谱图$x$映射到潜在空间，生成器$G$负责将潜在变量映射回梅尔频谱域，实现频谱图的重建。Soft-LRAAD的整体架构如图\ref{fig:soft_lraad}所示。
+
+\begin{figure}[H]
+    \centering
+    \def\svgwidth{\textwidth}
+    \input{./assets/soft_lraad_model.pdf_tex}
+    \caption{The training process of encoder $E$ and discriminator $D$}
+    \label{fig:soft_lraad}
+\end{figure}
+
+
+Soft-LRAAD的训练过程主要包括编码器$E$和生成器$G$的训练。具体的训练算法如Algorithm 1所示。Soft-LRAAD的训练与LRAAD类似，编码器与生成器以对抗的方式进行训练，通过最小化编码器和生成器的损失函数来优化模型参数。通过交替训练编码器和生成器，Soft-LRAAD模型的编码器能更好地区分正常数据和异常数据，生成器能更好地重建输入的频谱图，从而提高异常检测的准确性和鲁棒性。
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{l}
+        \toprule
+        \label{tab:training}
+        {\textbf{Algorithm 1} Training Soft-LRAAD model} \\
+        \midrule
+        1: Initialize network parameters \\
+        2: \quad {\textbf{For} number of epochs \textbf{do}} \\
+        3: \quad\quad Random mini-batch $X$ from dataset \\
+        4: \quad\quad Compute latent representation of $X$: $Z = E(X)$ \\
+        5: \quad\quad Sample $Z_p$ from prior distribution $p(z)=\mathcal{N}(0, I)$ \\
+        6: \quad\quad Compute reconstructed spectrogram of $Z$ and $Z_p$: $X^\prime = G(Z)$, $X^{\prime\prime} = G(Z_p)$ \\
+        7: \quad\quad Compute latent representation of $X^\prime$ and $X^{\prime\prime}$: $Z^\prime = E(X^\prime)$, $Z^{\prime\prime} = E(X^{\prime\prime})$ \\
+        8: \quad\quad Compute Encoder loss $\mathcal{L}_E$ according to Eq. \ref{eq:encoder_loss} \\
+        9: \quad\quad Update Encoder parameters by minimizing $\mathcal{L}_E$ \\
+        10: \quad\quad Compute Generator loss $\mathcal{L}_G$ according to Eq. \ref{eq:decoder_loss} \\
+        11: \quad\quad Update Generator parameters by minimizing $\mathcal{L}_G$ \\
+        12: \quad {\textbf{End For}} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+
+
+\subsection{异常检测}
+
+我们采用重构误差和 KL 散度之和作为异常分数。重构误差衡量生成频谱图与原始输入频谱图之间的差异，而 KL 散度则衡量潜在表示与标准正态分布之间的差异。对于正常数据，其重构误差较小，潜在表示接近标准正态分布；而对于异常数据，其重构误差较大，潜在表示远离标准正态分布。通过结合这两个指标，模型能够更准确地识别异常数据。异常分数定义的数学表达式如下：
+
+% \begin{equation}
+% \mathcal{A}(x)=\left\|x-G\left(E(x)\right)\right\|^2 + D_{\mathrm{KL}}(x)
+% \end{equation}
+\begin{equation}
+\mathcal{A}(x)=\|x-G(E(x))\|^2+D_{\mathrm{KL}}(E(x) \| \mathcal{N}(0, I))
+\end{equation}
+
+其中，$\mathcal{A}(x)$表示输入频谱图$x$的异常分数，$E(x)$表示输入频谱图$x$的潜在表示，$G(E(x))$表示潜在表示$E(x)$的重构频谱图，$D_{\mathrm{KL}}(E(x) \| \mathcal{N}(0, I))$表示潜在表示$E(x)$与标准正态分布之间的 KL 散度。通过计算异常分数，我们可以对输入频谱图$x$进行异常检测，判断其是否为异常数据。
+
+% \section{实验：Experiments}
+\section{Experiments}
+本节我们将介绍实验的设置和结果。我们首先介绍实验的数据集和预处理方法，然后详细描述实验的设置和评估指标，最后给出实验结果和分析。
+
+\subsection{Dataset}
+本实验采用的数据集是从中国某800kV特高压换流站的换流阀实测声音数据。这些数据是通过在换流站安装的传声器实时采集得到的，用于监测换流阀在运行过程中产生的声音信号。这些数据包含了换流站在正常运行状态下以及可能存在异常情况下记录的声音信号。在正常运行状态下，换流站产生的声音信号应当是稳定的，并且不会出现异常噪音。而在异常情况下，可能会出现各种故障或异常情况，例如设备摩擦、松动、电弧放电等，这些异常情况可能会导致声音信号的突变或异常增加。因此，通过分析和识别声音信号中的异常模式，可以帮助监测和诊断换流站设备的健康状况。
+
+该数据集包含了一系列声音信号的录音文件，录音文件以 WAV 格式存储，每个文件记录了在不同时间点下换流站产生的声音信号。每个录音文件的采样频率为44.1Hz，持续时间为10秒。在数据集的收集过程中，我们尽可能涵盖了换流站设备可能遇到的各种正常和异常情况，以确保数据集的多样性和代表性。同时，我们还对录音文件进行了标注，将正常状态和异常状态的声音信号区分开来，以便于实验和分析。
+
+
+
+为了进行实验，我们将每个录音文件切分为多个长度为1.36秒的音频片段，然后将每个音频片段转换为对应的梅尔频谱图。梅尔频谱图是声音信号的一种常用表示形式，它可以更好地反映声音信号的频谱特征。我们使用梅尔频谱图作为模型的输入，以便于模型学习和分析声音信号的频谱特征。对于每个梅尔频谱图，我们对其进行对数变换和归一化处理，以便于模型训练和优化。
+
+\subsection{Data Preprocessing}
+
+在进行声学信号的异常检测实验时，数据预处理是非常关键的一步，它直接影响到后续模型的训练和异常检测的准确性。下面是我们对实验数据进行的详细预处理步骤：
+
+
+为了更好地处理数据和提取特征，我们首先将长时间的音频信号分段为较短的片段。这可以通过滑动窗口的方式进行，每个窗口包含一段时间内的音频数据。这样做的目的是使得数据更易于处理，并且可以更精确地捕获声音的时间特征。
+
+
+对于每个音频分段，我们使用梅尔频率倒谱系数（Mel Frequency Cepstral Coefficients，MFCC）来表示其频谱特征。梅尔频谱是在横坐标上使用Mel刻度，纵坐标上是功率谱的一种表示方式，更符合人类听觉感知的特性。我们使用Librosa等库来进行梅尔频谱转换，将每个音频分段转换为对应的梅尔频谱图。 对于得到的梅尔频谱图，我们对其进行对数变换。这一步骤可以有效地增强低频特征的信息，减少高频特征的干扰，使得数据更加平滑和稳定。
+
+接下来，我们对经过对数变换的梅尔频谱图进行归一化处理。归一化的目的是将数据缩放到一个统一的范围内，以避免不同特征之间的数值差异对模型训练造成影响。我们使用最小-最大归一化来处理数据。
+
+\subsection{Experimental Settings}
+
+LRAL-AD 模型包含编码器、生成器和判别器三个主要部分。编码器使用了由 CAE 提出的架构，包括五个卷积层，负责将输入的梅尔频谱图映射到潜在空间中的均值和方差。生成器则采用了 DCGAN 提出的架构，包括五个反卷积层，用于将潜在变量映射回梅尔频谱域，实现频谱图的重建。判别器也采用了 DCGAN 的架构，包括五个卷积层，用于判断输入的频谱图是真实数据还是生成数据。这种架构的设计旨在平衡编码器的特征提取能力、生成器的重建能力和判别器的区分能力，从而提高异常检测的准确性和鲁棒性。
+
+在训练 ARAL-AD 模型时，我们需要设置多个超参数来调节模型的性能。例如，编码器和生成器的学习率、损失函数的权重系数（如重构损失、对抗损失、KL 散度损失的权重）、潜在空间的维度大小、训练的迭代次数等。这些超参数的选择对模型的训练和性能具有重要影响，需要通过实验和验证来确定最佳的超参数组合。在实验中，我们采用的超参数设置如Table \ref{tab:params}所示：
+
+
+\begin{table}[H]
+    \centering
+    \caption{Soft-LRAAD Model Hyperparameter Settings}
+    \label{tab:params}
+    \begin{tabular}{lr}
+        \toprule
+        \textbf{Hyperparameter} & \textbf{Setting} \\
+        \midrule
+        Latent Space Dimension & 32 \\
+        Learning Rate (Encoder) & 0.0002 \\
+        Learning Rate (Generator) & 0.0002 \\
+        Loss Weight (Reconstruction) & 1 \\
+        Loss Weight (Adversarial) & 1 \\
+        Loss Weight (KL Divergence) & 1 \\
+        Alpha (Soft Constraint Coefficient) & 128$\times $128 \\
+        Training Epochs & 100 \\
+        Batch Size & 32 \\
+        Dataset Split & 80\% Training, 30\% Testing \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+% \subsection{评估指标：Evaluation Metrics}
+\subsection{Evaluation Metrics}
+在实验中，评估指标是对模型性能进行客观量化和比较的重要标准。我们主要使用了AUC（Area Under the ROC Curve）指标来评估异常检测模型的效果。
+
+ROC曲线（Receiver Operating Characteristic Curve）：ROC曲线是用于评估二分类模型性能的图形工具，横轴表示假阳性率（False Positive Rate，FPR），纵轴表示真阳性率（True Positive Rate，TPR）。ROC曲线能够直观展示在不同阈值下模型的真阳性率与假阳性率之间的权衡关系。一般来说，ROC曲线越接近左上角（TPR高、FPR低），说明模型性能越好，对异常检测问题来说，ROC曲线的面积（AUC）越大，表示模型对于正常和异常样本的区分能力越强。
+
+AUC（Area Under Curve）：AUC是ROC曲线下方的面积，用于衡量模型分类效果的一个总体指标。AUC的取值范围在0.5到1之间，其中0.5表示模型性能等同于随机分类，1表示完美分类。在异常检测任务中，AUC值越接近1，说明模型对正常和异常样本的区分能力越强，具有更好的检测准确度。
+
+ROC 曲线和 AUC 指标是评估异常检测模型性能的重要指标，能够直观地反映模型在识别异常样本和正常样本方面的表现，并帮助比较不同模型的性能优劣。
+
+% \subsection{实验结果：Experimental Results}
+\subsection{Experimental Results}
+为验证ARAL-AD模型在异常检测领域的检测性能，本实验将LR-AEGAN模型与CAE、AnoGAN、GANomaly等经典异常检测模型进行了对比实验。实验结果表明，LR-AEGAN模型在异常检测任务上取得了更好的性能表现，具有更高的AUC和p-AUC值，能够更准确地识别出异常样本。
+
+Figure \ref{fig:roc_curve}展示了ARAL-AD模型与其他模型在异常检测任务上的ROC曲线。从图中可以看出，LR-AEGAN模型的ROC曲线处于其他模型的上方，AUC值更高，表明LR-AEGAN模型具有更好的性能表现。实验结果表明，LR-AEGAN模型与其他模型在异常检测任务上的AUC值。LR-AEGAN模型的AUC值为0.9471，GANomaly模型的AUC值为0.9917，CAE模型的AUC值为0.8833，AnoGAN模型的AUC值为0.8765。
+
+
+\begin{table}[H]
+    \centering
+    \caption{AUC Comparison of Different Models on Different Datasets}
+    \begin{tabular}{ccccccc}
+        \toprule
+        Dataset & CAE & VAE & f-AnoGAN & GANomaly & LRAAD & Soft-LRAAD(Our) \\
+        \midrule
+        Dataset1 & 0.8975 & 0.8662 & 0.8400 & 0.8966 & 0.9361 & \textbf{0.9742} \\
+        Dataset2 & 0.8911 & 0.8652 & 0.8560 & 0.9195 & 0.9475 & \textbf{0.9755} \\
+        Dataset3 & 0.9266 & 0.8958 & 0.8662 & 0.9266 & 0.9607 & \textbf{0.9851} \\
+        Dataset4 & 0.9087 & 0.8868 & 0.8654 & 0.9333 & 0.9626 & \textbf{0.9788} \\
+        Dataset5 & 0.8962 & 0.8965 & 0.8910 & 0.9511 & 0.9721 & \textbf{0.9975} \\
+        Dataset6 & 0.8523 & 0.8178 & 0.8126 & 0.8270 & 0.8674 & \textbf{0.9782} \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:auc}
+\end{table}
+
+
+\begin{table}[H]
+    \centering
+    \caption{p-AUC Comparison of Different Models on Different Datasets (FPR<0.3)}
+    \begin{tabular}{ccccccc}
+        \toprule
+        Dataset & CAE & VAE & f-AnoGAN & GANomaly & LRAAD & Soft-LRAAD(Our) \\
+        \midrule
+        Dataset1 & 0.6664 & 0.5824 & 0.5161 & 0.7232 & 0.7930 & \textbf{0.9162} \\
+        Dataset2 & 0.6394 & 0.5559 & 0.5487 & 0.7843 & 0.8430 & \textbf{0.9152} \\
+        Dataset3 & 0.7605 & 0.6576 & 0.5935 & 0.8076 & 0.8639 & \textbf{0.9538} \\
+        Dataset4 & 0.6972 & 0.6252 & 0.5790 & 0.8164 & 0.8342 & \textbf{0.9118} \\
+        Dataset5 & 0.6529 & 0.6569 & 0.6423 & 0.8705 & \textbf{0.8866} & 0.8794 \\
+        Dataset6 & 0.5262 & 0.4656 & 0.4589 & 0.5243 & 0.6335 & \textbf{0.9377} \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:p-auc-03}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{p-AUC Comparison of Different Models on Different Datasets (FPR<0.2)}
+    \begin{tabular}{ccccccc}
+        \toprule
+        Dataset & CAE & VAE & f-AnoGAN & GANomaly & LRAAD & Soft-LRAAD(Our) \\
+        \midrule
+        Dataset1 & 0.5431 & 0.4503 & 0.3809 & 0.6417 & 0.7078 & \textbf{0.8706} \\
+        Dataset2 & 0.5355 & 0.4192 & 0.4037 & 0.7324 & 0.7865 & \textbf{0.8798} \\
+        Dataset3 & 0.7041 & 0.5225 & 0.4598 & 0.7496 & 0.8176 & \textbf{0.9399} \\
+        Dataset4 & 0.6142 & 0.5014 & 0.4532 & 0.7609 & 0.8173 & \textbf{0.9108} \\
+        Dataset5 & 0.5465 & 0.5390 & 0.5371 & \textbf{0.8332} & 0.8115 & 0.8306 \\
+        Dataset6 & 0.3801 & 0.3190 & 0.3227 & 0.3935 & 0.5377 & \textbf{0.9097} \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:p-auc-02}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{p-AUC Comparison of Different Models on Different Datasets (FPR<0.1)}
+    \begin{tabular}{ccccccc}
+        \toprule
+        Dataset & CAE & VAE & f-AnoGAN & GANomaly & LRAAD & Soft-LRAAD(Our) \\
+        \midrule
+        Dataset1 & 0.3640 & 0.2736 & 0.2261 & 0.5268 & 0.5629 & \textbf{0.8279} \\
+        Dataset2 & 0.4405 & 0.2472 & 0.2318 & 0.6353 & 0.6658 & \textbf{0.8068} \\
+        Dataset3 & 0.6024 & 0.3372 & 0.2651 & 0.6810 & 0.7020 & \textbf{0.9167} \\
+        Dataset4 & 0.5487 & 0.3345 & 0.3136 & 0.6635 & 0.6993 & \textbf{0.8059} \\
+        Dataset5 & 0.4090 & 0.3700 & 0.3964 & \textbf{0.7626} & 0.7400 & 0.6544 \\
+        Dataset6 & 0.2168 & 0.1566 & 0.1624 & 0.2330 & 0.3791 & \textbf{0.8936} \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:p-auc-01}
+\end{table}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.45\linewidth]{./experiments/ssva1/roc_curve.pdf}
+  \hfill
+  \includegraphics[width=0.45\linewidth]{./experiments/ssva2/roc_curve.pdf}
+  \hfill
+  \includegraphics[width=0.45\linewidth]{./experiments/ssva3/roc_curve.pdf}
+  \hfill
+  \includegraphics[width=0.45\linewidth]{./experiments/ssva4/roc_curve.pdf}
+  \hfill
+  \includegraphics[width=0.45\linewidth]{./experiments/ssva5/roc_curve.pdf}
+  \hfill
+  \includegraphics[width=0.45\linewidth]{./experiments/ssva6/roc_curve.pdf}
+\end{figure}
+
+\subsection{Soft-LRAAD for Feature Extraction}
+
+对于声学特征提取任务，目前主要包括两种方法：基于手工特征的方法和基于深度学习的方法。基于手工特征的方法需要人工设计特征提取器，提取声学信号的频谱、MFCC等特征，然后使用传统的分类器进行分类。这种方法需要大量的领域知识和经验，且往往无法充分挖掘数据的潜在特征。基于深度学习的方法则可以自动学习特征表示，无需人工干预，能够更好地挖掘数据的潜在特征，提高分类性能。
+
+声学特征的手工特征提取方法主要包括时域特征、频域特征和时频域特征。时域特征主要包括时域波形、短时能量、过零率等；频域特征主要包括频谱、功率谱、梅尔频谱等；时频域特征主要包括MFCC、STFT等。时域和频域特征提取的声学信息量较小，往往存在很多的信息丢失，难以充分挖掘数据的潜在特征。而时频域特征提取方法则能够更好地反映声学信号的频谱特征，提高特征的表达能力。我们可以从声音信号的时频域特征很好地重构回原始的音频波形，而时域和频域特征则很难做到这一点，说明时频域特征更具有表达能力，具备原始波形的更多特征信息。
+
+对于深度学习方法，我们认为如果特征能够很好重构回原始数据，那么这个特征就包含了原始数据的更多特征信息，具有更好的表达能力。因此，自编码器是一个很好的特征提取器，它可以通过学习数据的潜在表示来提取数据的特征，从而实现数据的降维和特征提取。
+
+对于Soft-LRAAD模型，其编码器和解码器的优化过程都进行了重构误差损失的优化，而且编码器的优化过程还使得训练数据的潜在表示更接近先验分布，而生成数据的潜在表示则偏离先验分布。这种优化过程使得编码器不仅学习到了更好的特征表示，还学习到了声音是否为正常数据的信息。因此，我们可以将Soft-LRAAD模型的编码器作为特征提取器，用于提取声学信号的特征。通过将声学信号输入到Soft-LRAAD模型的编码器中，可以得到声学信号的潜在表示，这个潜在表示包含了声学信号正常和异常的特征信息，可以用于后续的分类和识别任务。下图为几种算法的潜在表示的t-SNE可视化结果，可以看出Soft-LRAAD模型的潜在表示能够更好地区分正常数据和异常数据。
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.45\linewidth]{./experiments/autoencoder/ssva2/epoch_49_tsne_latents.pdf}
+  \hfill
+  \includegraphics[width=0.45\linewidth]{./experiments/vae/ssva2/epoch_46_tsne_latent.pdf}
+  \hfill
+  \includegraphics[width=0.45\linewidth]{./experiments/fanogan/ssva2/epoch_15_tsne_latents.pdf}
+  \hfill
+  \includegraphics[width=0.45\linewidth]{./experiments/ganomaly/ssva2/epoch_98_latents.pdf}
+  \hfill
+  \includegraphics[width=0.45\linewidth]{./experiments/lraad/ssva2/epoch_88_tsne_latent.pdf}
+  \hfill
+  \includegraphics[width=0.45\linewidth]{./experiments/improved_lraad/ssva2/epoch_99_tsne_latent.pdf}
+  \label{fig:tsne}
+  \caption{t-SNE Visualization of Latent Representations}
+\end{figure}
+
+\section{Conclusion}
+
+
+\bibliography{references}
+
+\end{document}
+

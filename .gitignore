@@ -3,7 +3,7 @@ results/
 checkpoints/
 experiments
 experiments_lraad
-paper
+# paper
 saves/
 # Byte-compiled / optimized / DLL files
 __pycache__/

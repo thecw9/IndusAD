@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="664.46997"
+   height="421.80215"
+   viewBox="0 0 664.46995 421.80214"
+   sodipodi:docname="hard_constraints.svg"
+   inkscape:version="1.3.2 (091e20ef0f, 2023-11-25, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <rect
+       x="573.29425"
+       y="399.03946"
+       width="83.188995"
+       height="29.196173"
+       id="rect38" />
+    <marker
+       style="overflow:visible"
+       id="marker36"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Concave triangle arrow"
+       markerWidth="2"
+       markerHeight="2"
+       viewBox="0 0 1 1"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid"
+       markerUnits="strokeWidth">
+      <path
+         transform="scale(0.7)"
+         d="M -2,-4 9,0 -2,4 c 2,-2.33 2,-5.66 0,-8 z"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         id="path36" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="ConcaveTriangle"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Concave triangle arrow"
+       markerWidth="2"
+       markerHeight="2"
+       viewBox="0 0 1 1"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.7)"
+         d="M -2,-4 9,0 -2,4 c 2,-2.33 2,-5.66 0,-8 z"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         id="path34" />
+    </marker>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath4">
+      <path
+         d="M -1021,-463 H 1794 V 1233 H -1021 Z"
+         transform="translate(-3.4091009e-4,-2.5000006e-4)"
+         id="path4" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath7">
+      <path
+         d="M -1021,-463 H 1794 V 1233 H -1021 Z"
+         transform="translate(2.7273007e-4,-2.5000006e-4)"
+         id="path7" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath24">
+      <path
+         d="m 72,65.04 h 446.4 v 297.6 H 72 Z"
+         id="path24" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath26">
+      <path
+         d="m 72,65.04 h 446.4 v 297.6 H 72 Z"
+         id="path26" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath28">
+      <path
+         d="m 72,65.04 h 446.4 v 297.6 H 72 Z"
+         id="path28" />
+    </clipPath>
+  </defs>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="3.0788609"
+     inkscape:cx="358.57418"
+     inkscape:cy="57.975988"
+     inkscape:window-width="1526"
+     inkscape:window-height="833"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g1">
+    <inkscape:page
+       x="0"
+       y="0"
+       inkscape:label="1"
+       id="page1"
+       width="664.46997"
+       height="421.80215"
+       margin="0"
+       bleed="0" />
+  </sodipodi:namedview>
+  <g
+     id="g1"
+     inkscape:groupmode="layer"
+     inkscape:label="1"
+     transform="translate(-96.011294,-80.976597)">
+    <path
+       id="path23"
+       d="M 92.290909,349.11273 362.83636,78.567273 h 135.27273 v 0"
+       style="fill:none;stroke:#0000ff;stroke-width:1.5;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+       transform="matrix(1.3333333,0,0,-1.3333333,0,576)"
+       clip-path="url(#clipPath24)" />
+    <path
+       style="fill:#d40000;stroke:#800080;stroke-width:0.933333;stroke-dasharray:none;marker-end:url(#ConcaveTriangle)"
+       d="M 96.011294,471.37419 H 691.16196"
+       id="path32" />
+    <path
+       style="fill:#d40000;stroke:#800080;stroke-width:0.933333;stroke-miterlimit:4;stroke-dasharray:none;marker-start:url(#marker36)"
+       d="M 302.97039,92.736592 V 489.92528"
+       id="path33" />
+    <text
+       xml:space="preserve"
+       transform="translate(96,92.480011)"
+       id="text38"
+       style="white-space:pre;shape-inside:url(#rect38);display:inline;fill:#800080;fill-opacity:1;stroke:none;stroke-width:0.377953;stroke-miterlimit:4;stroke-dasharray:none" />
+    <text
+       xml:space="preserve"
+       style="fill:#800080;fill-opacity:1;stroke:none;stroke-width:0.377953;stroke-miterlimit:4;stroke-dasharray:none"
+       x="658.12134"
+       y="500.23477"
+       id="text39"><tspan
+         sodipodi:role="line"
+         id="tspan39"
+         x="658.12134"
+         y="500.23477">$D_{\mathrm{KL}}$</tspan></text>
+    <text
+       xml:space="preserve"
+       style="fill:#800080;fill-opacity:1;stroke:none;stroke-width:0.377953;stroke-miterlimit:4;stroke-dasharray:none"
+       x="471.98438"
+       y="499.763"
+       id="text1"><tspan
+         sodipodi:role="line"
+         id="tspan1"
+         x="471.98438"
+         y="499.763">$M$</tspan></text>
+    <text
+       xml:space="preserve"
+       style="fill:#ffffff;stroke:#000000;stroke-width:1.88976"
+       x="327.59619"
+       y="95.068703"
+       id="text2"><tspan
+         sodipodi:role="line"
+         id="tspan2"
+         x="327.59619"
+         y="95.068703" /></text>
+    <text
+       xml:space="preserve"
+       style="fill:#800080;fill-opacity:1;stroke:none;stroke-width:0.377953;stroke-miterlimit:4;stroke-dasharray:none"
+       x="323.91196"
+       y="101.26833"
+       id="text3"><tspan
+         sodipodi:role="line"
+         id="tspan3"
+         x="323.91196"
+         y="101.26833">$[M - D_{\mathrm{KL}}]^{+}$</tspan></text>
+  </g>
+</svg>
