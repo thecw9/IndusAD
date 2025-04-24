@@ -12,6 +12,9 @@ from sklearn.metrics import (
     confusion_matrix,
     precision_recall_curve,
     roc_auc_score,
+    accuracy_score,
+    recall_score,
+    f1_score,
 )
 import scienceplots
 import pandas as pd
@@ -266,6 +269,9 @@ class Evaluater:
             "improved_lraad": "Soft-LRAAD",
         }
         self.auc_results = {dataset: {} for dataset in self.datasets}
+        self.recall_results = {dataset: {} for dataset in self.datasets}
+        self.accuracy_results = {dataset: {} for dataset in self.datasets}
+        self.f1_results = {dataset: {} for dataset in self.datasets}
         self.partial_auc_results_01 = {dataset: {} for dataset in self.datasets}
         self.partial_auc_results_02 = {dataset: {} for dataset in self.datasets}
         self.partial_auc_results_03 = {dataset: {} for dataset in self.datasets}
@@ -446,6 +452,14 @@ class Evaluater:
             precision, recall, _ = precision_recall_curve(label, anomaly_score)
             plt.plot(recall, precision, color=colors[i], label=self.label[model])
 
+            # save accuracy, recall, f1_score
+            self.accuracy_results[dataset][model] = accuracy_score(label, y_pred)
+            self.recall_results[dataset][model] = recall_score(label, y_pred)
+            self.f1_results[dataset][model] = f1_score(label, y_pred)
+
+
+
+
         plt.xlabel("召回率（Recall）")
         plt.ylabel("精确率（Precision）")
         plt.title(f"PR曲线（{dataset_name}）")
@@ -453,6 +467,23 @@ class Evaluater:
         plt.savefig(Path(save_root) / "pr_curve.png", dpi=1200)
         plt.savefig(Path(save_root) / "pr_curve.svg")
         plt.close()
+
+        save_root = Path(save_root).parent
+        with open(Path(save_root) / "accuracy_results.json", "w") as f:
+            json.dump(self.accuracy_results, f, indent=4)
+        df = pd.DataFrame(self.accuracy_results).T
+        df.to_csv(Path(save_root) / "accuracy_results.csv", float_format="%.4f")
+
+        with open(Path(save_root) / "recall_results.json", "w") as f:
+            json.dump(self.recall_results, f, indent=4)
+        df = pd.DataFrame(self.recall_results).T
+        df.to_csv(Path(save_root) / "recall_results.csv", float_format="%.4f")
+
+
+        with open(Path(save_root) / "f1_results.json", "w") as f:
+            json.dump(self.f1_results, f, indent=4)
+        df = pd.DataFrame(self.f1_results).T
+        df.to_csv(Path(save_root) / "f1_results.csv", float_format="%.4f")
 
     def run(self, save_root="experiments"):
         for dataset in self.datasets:
